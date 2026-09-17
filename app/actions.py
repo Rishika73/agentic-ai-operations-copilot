@@ -7,9 +7,6 @@ def propose_action(state: AgentState) -> Dict[str, Any]:
     route = state.get("route")
     query = state.get("user_query", "").lower()
 
-    proposed_action = {}
-    requires_approval = False
-
     if route == "account_risk":
         proposed_action = {
             "action_type": "customer_outreach",
@@ -30,7 +27,7 @@ def propose_action(state: AgentState) -> Dict[str, Any]:
         }
         requires_approval = True
 
-    elif route == "knowledge":
+    else:
         proposed_action = {
             "action_type": "no_action",
             "description": (
@@ -39,10 +36,13 @@ def propose_action(state: AgentState) -> Dict[str, Any]:
         }
         requires_approval = False
 
-    if "do not take action" in query or "analysis only" in query:
+    if (
+        "do not take action" in query
+        or "analysis only" in query
+    ):
         proposed_action = {
             "action_type": "no_action",
-            "description": "User requested analysis only."
+            "description": "User requested analysis only.",
         }
         requires_approval = False
 
