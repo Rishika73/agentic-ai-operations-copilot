@@ -1,9 +1,10 @@
 from typing import Dict, Any
-from app.llm import generate_operational_answer
 
 from langgraph.graph import StateGraph, END
 
 from app.state import AgentState
+from app.llm import generate_operational_answer
+
 from tools.crm_tool import (
     get_at_risk_accounts,
     get_accounts_renewing_within,
@@ -75,8 +76,6 @@ def knowledge_node(state: AgentState) -> Dict[str, Any]:
     }
 
 
-def choose_route(state: AgentState) -> str:
-    return state["route"]
 def synthesis_node(state: AgentState) -> Dict[str, Any]:
     answer = generate_operational_answer(
         user_query=state["user_query"],
@@ -87,19 +86,21 @@ def synthesis_node(state: AgentState) -> Dict[str, Any]:
 
     return {
         "final_answer": answer
-    }    
+    }
+
+
+def choose_route(state: AgentState) -> str:
+    return state["route"]
 
 
 def build_graph():
     graph = StateGraph(AgentState)
-    graph.add_node("synthesis", synthesis_node)
 
     graph.add_node("router", route_query)
-    graph.add_edge("account_risk", "synthesis")
-    graph.add_edge("incident", "synthesis")
-    graph.add_edge("knowledge", "synthesis")
-
-    graph.add_edge("synthesis", END)
+    graph.add_node("account_risk", account_risk_node)
+    graph.add_node("incident", incident_node)
+    graph.add_node("knowledge", knowledge_node)
+    graph.add_node("synthesis", synthesis_node)
 
     graph.set_entry_point("router")
 
@@ -113,9 +114,11 @@ def build_graph():
         },
     )
 
-    graph.add_edge("account_risk", END)
-    graph.add_edge("incident", END)
-    graph.add_edge("knowledge", END)
+    graph.add_edge("account_risk", "synthesis")
+    graph.add_edge("incident", "synthesis")
+    graph.add_edge("knowledge", "synthesis")
+
+    graph.add_edge("synthesis", END)
 
     return graph.compile()
 
