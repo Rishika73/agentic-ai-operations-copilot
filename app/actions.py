@@ -98,9 +98,7 @@ def execute_action(state: AgentState) -> Dict[str, Any]:
             "action_result": {
                 "status": "no_action",
                 "action_type": "no_action",
-                "message": (
-                    "No operational action was required."
-                ),
+                "message": "No operational action was required.",
             }
         }
 
@@ -108,9 +106,7 @@ def execute_action(state: AgentState) -> Dict[str, Any]:
         return {
             "action_result": {
                 "status": "not_executed",
-                "reason": (
-                    "Action was not approved by a human."
-                ),
+                "reason": "Action was not approved by a human.",
             }
         }
 
@@ -152,9 +148,7 @@ def execute_action(state: AgentState) -> Dict[str, Any]:
         result = {
             "status": "no_action",
             "action_type": "no_action",
-            "message": (
-                "No operational action was required."
-            ),
+            "message": "No operational action was required.",
         }
 
     return {
