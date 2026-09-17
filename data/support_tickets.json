@@ -1,0 +1,52 @@
+[
+  {
+    "ticket_id": "INC-1001",
+    "customer": "Northstar Retail",
+    "priority": "high",
+    "status": "open",
+    "category": "API",
+    "summary": "Checkout API returning intermittent 500 errors",
+    "assigned_team": "Platform Engineering",
+    "created_hours_ago": 3
+  },
+  {
+    "ticket_id": "INC-1002",
+    "customer": "BluePeak Finance",
+    "priority": "critical",
+    "status": "open",
+    "category": "Authentication",
+    "summary": "Enterprise users unable to authenticate through SSO",
+    "assigned_team": "Identity Engineering",
+    "created_hours_ago": 1
+  },
+  {
+    "ticket_id": "INC-1003",
+    "customer": "GreenField Health",
+    "priority": "medium",
+    "status": "investigating",
+    "category": "Performance",
+    "summary": "Analytics dashboard loading slower than normal",
+    "assigned_team": "Data Platform",
+    "created_hours_ago": 8
+  },
+  {
+    "ticket_id": "INC-1004",
+    "customer": "Northstar Retail",
+    "priority": "low",
+    "status": "resolved",
+    "category": "Billing",
+    "summary": "Incorrect usage total displayed in billing dashboard",
+    "assigned_team": "Billing Platform",
+    "created_hours_ago": 30
+  },
+  {
+    "ticket_id": "INC-1005",
+    "customer": "Vertex Logistics",
+    "priority": "high",
+    "status": "open",
+    "category": "Integration",
+    "summary": "Shipment webhook events delayed by more than twenty minutes",
+    "assigned_team": "Integration Platform",
+    "created_hours_ago": 5
+  }
+]
