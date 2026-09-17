@@ -1,8 +1,9 @@
 from typing import Dict, Any
+import sqlite3
 import uuid
 
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 
 from app.state import AgentState
@@ -22,10 +23,17 @@ from tools.knowledge_tool import search_knowledge
 
 
 # --------------------------------------------------
-# LangGraph checkpointer
+# Persistent SQLite Checkpointer
 # --------------------------------------------------
 
-checkpointer = InMemorySaver()
+sqlite_connection = sqlite3.connect(
+    "agent_memory.db",
+    check_same_thread=False,
+)
+
+checkpointer = SqliteSaver(
+    sqlite_connection
+)
 
 
 # --------------------------------------------------
@@ -108,7 +116,7 @@ def knowledge_node(state: AgentState) -> Dict[str, Any]:
 
 
 # --------------------------------------------------
-# LLM Synthesis Node
+# LLM Synthesis
 # --------------------------------------------------
 
 def synthesis_node(state: AgentState) -> Dict[str, Any]:
@@ -131,7 +139,7 @@ def synthesis_node(state: AgentState) -> Dict[str, Any]:
 
 
 # --------------------------------------------------
-# Route Selector
+# Router Selector
 # --------------------------------------------------
 
 def choose_route(state: AgentState) -> str:
@@ -139,7 +147,7 @@ def choose_route(state: AgentState) -> str:
 
 
 # --------------------------------------------------
-# Build Agent Graph
+# Build Graph
 # --------------------------------------------------
 
 def build_graph():
@@ -186,7 +194,7 @@ def build_graph():
         execute_action,
     )
 
-    # Entry point
+    # Start
     graph.set_entry_point(
         "router"
     )
@@ -202,7 +210,7 @@ def build_graph():
         },
     )
 
-    # Tool results -> LLM
+    # Tool -> LLM
     graph.add_edge(
         "account_risk",
         "synthesis",
@@ -224,19 +232,19 @@ def build_graph():
         "action_proposal",
     )
 
-    # Proposed action -> human approval
+    # Action proposal -> approval
     graph.add_edge(
         "action_proposal",
         "human_approval",
     )
 
-    # Human decision -> execution node
+    # Approval -> execution
     graph.add_edge(
         "human_approval",
         "execute_action",
     )
 
-    # Execution -> end
+    # Execution -> finish
     graph.add_edge(
         "execute_action",
         END,
@@ -273,7 +281,7 @@ def run_agent(
 
 
 # --------------------------------------------------
-# Resume Agent After Human Decision
+# Resume Interrupted Agent
 # --------------------------------------------------
 
 def resume_agent(
@@ -313,10 +321,12 @@ if __name__ == "__main__":
         print("\nQUESTION")
         print(question)
 
-        # Each question gets its own persistent graph thread.
         thread_id = str(
             uuid.uuid4()
         )
+
+        print("\nTHREAD ID")
+        print(thread_id)
 
         result = run_agent(
             question,
@@ -352,7 +362,7 @@ if __name__ == "__main__":
         )
 
         # --------------------------------------------------
-        # Human approval required
+        # Human approval
         # --------------------------------------------------
 
         if result.get(
@@ -406,7 +416,7 @@ if __name__ == "__main__":
             )
 
         # --------------------------------------------------
-        # No approval required
+        # No Approval Needed
         # --------------------------------------------------
 
         else:
