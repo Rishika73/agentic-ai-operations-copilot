@@ -1,5 +1,7 @@
 from typing import Dict, Any
 
+from langgraph.graph import StateGraph, END
+
 from app.state import AgentState
 from tools.crm_tool import (
     get_at_risk_accounts,
@@ -62,3 +64,62 @@ def knowledge_node(state: AgentState) -> Dict[str, Any]:
     return {
         "retrieved_context": results
     }
+
+
+def choose_route(state: AgentState) -> str:
+    return state["route"]
+
+
+def build_graph():
+    graph = StateGraph(AgentState)
+
+    graph.add_node("router", route_query)
+    graph.add_node("account_risk", account_risk_node)
+    graph.add_node("incident", incident_node)
+    graph.add_node("knowledge", knowledge_node)
+
+    graph.set_entry_point("router")
+
+    graph.add_conditional_edges(
+        "router",
+        choose_route,
+        {
+            "account_risk": "account_risk",
+            "incident": "incident",
+            "knowledge": "knowledge",
+        },
+    )
+
+    graph.add_edge("account_risk", END)
+    graph.add_edge("incident", END)
+    graph.add_edge("knowledge", END)
+
+    return graph.compile()
+
+
+agent_graph = build_graph()
+
+
+def run_agent(query: str):
+    return agent_graph.invoke(
+        {
+            "user_query": query
+        }
+    )
+
+
+if __name__ == "__main__":
+    questions = [
+        "Which customer accounts are at risk?",
+        "What open incidents do we have?",
+        "What is the policy for critical incident response?",
+    ]
+
+    for question in questions:
+        print("\nQUESTION")
+        print(question)
+
+        result = run_agent(question)
+
+        print("\nRESULT")
+        print(result)
