@@ -4,7 +4,7 @@ from langgraph.graph import StateGraph, END
 
 from app.state import AgentState
 from app.llm import generate_operational_answer
-from app.actions import propose_action
+from app.actions import propose_action, human_approval_node
 
 from tools.crm_tool import (
     get_at_risk_accounts,
@@ -96,6 +96,7 @@ def choose_route(state: AgentState) -> str:
 
 def build_graph():
     graph = StateGraph(AgentState)
+    graph.add_node("human_approval", human_approval_node)
 
     graph.add_node("router", route_query)
     graph.add_node("account_risk", account_risk_node)
@@ -121,7 +122,8 @@ def build_graph():
     graph.add_edge("knowledge", "synthesis")
 
     graph.add_edge("synthesis", "action_proposal")
-    graph.add_edge("action_proposal", END)
+    graph.add_edge("action_proposal", "human_approval")
+    graph.add_edge("human_approval", END)
 
     return graph.compile()
 
