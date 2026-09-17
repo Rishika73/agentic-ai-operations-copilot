@@ -1,6 +1,5 @@
 from typing import Dict, Any
 import sqlite3
-import uuid
 
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.sqlite import SqliteSaver
@@ -66,7 +65,7 @@ def route_query(state: AgentState) -> Dict[str, Any]:
 
 
 # --------------------------------------------------
-# Account Risk Tool Node
+# Account Risk Node
 # --------------------------------------------------
 
 def account_risk_node(state: AgentState) -> Dict[str, Any]:
@@ -85,7 +84,7 @@ def account_risk_node(state: AgentState) -> Dict[str, Any]:
 
 
 # --------------------------------------------------
-# Incident Tool Node
+# Incident Node
 # --------------------------------------------------
 
 def incident_node(state: AgentState) -> Dict[str, Any]:
@@ -102,7 +101,7 @@ def incident_node(state: AgentState) -> Dict[str, Any]:
 
 
 # --------------------------------------------------
-# Knowledge Tool Node
+# Knowledge Node
 # --------------------------------------------------
 
 def knowledge_node(state: AgentState) -> Dict[str, Any]:
@@ -139,7 +138,7 @@ def synthesis_node(state: AgentState) -> Dict[str, Any]:
 
 
 # --------------------------------------------------
-# Router Selector
+# Route Selector
 # --------------------------------------------------
 
 def choose_route(state: AgentState) -> str:
@@ -153,7 +152,6 @@ def choose_route(state: AgentState) -> str:
 def build_graph():
     graph = StateGraph(AgentState)
 
-    # Nodes
     graph.add_node(
         "router",
         route_query,
@@ -194,12 +192,10 @@ def build_graph():
         execute_action,
     )
 
-    # Start
     graph.set_entry_point(
         "router"
     )
 
-    # Routing
     graph.add_conditional_edges(
         "router",
         choose_route,
@@ -210,7 +206,6 @@ def build_graph():
         },
     )
 
-    # Tool -> LLM
     graph.add_edge(
         "account_risk",
         "synthesis",
@@ -226,25 +221,21 @@ def build_graph():
         "synthesis",
     )
 
-    # LLM -> proposed action
     graph.add_edge(
         "synthesis",
         "action_proposal",
     )
 
-    # Action proposal -> approval
     graph.add_edge(
         "action_proposal",
         "human_approval",
     )
 
-    # Approval -> execution
     graph.add_edge(
         "human_approval",
         "execute_action",
     )
 
-    # Execution -> finish
     graph.add_edge(
         "execute_action",
         END,
@@ -281,7 +272,7 @@ def run_agent(
 
 
 # --------------------------------------------------
-# Resume Interrupted Agent
+# Resume Agent
 # --------------------------------------------------
 
 def resume_agent(
@@ -308,11 +299,19 @@ def resume_agent(
 
 if __name__ == "__main__":
 
+    # IMPORTANT:
+    # Fixed thread ID so SQLite can persist this thread
+    # across different Python / Terminal sessions.
+    thread_id = "demo-operations-thread"
+
     questions = [
         "Which customer accounts are at risk?",
         "What open incidents do we have?",
         "What is the policy for critical incident response?",
     ]
+
+    print("\nUSING THREAD")
+    print(thread_id)
 
     for question in questions:
 
@@ -320,13 +319,6 @@ if __name__ == "__main__":
 
         print("\nQUESTION")
         print(question)
-
-        thread_id = str(
-            uuid.uuid4()
-        )
-
-        print("\nTHREAD ID")
-        print(thread_id)
 
         result = run_agent(
             question,
@@ -360,10 +352,6 @@ if __name__ == "__main__":
                 "approval_status"
             )
         )
-
-        # --------------------------------------------------
-        # Human approval
-        # --------------------------------------------------
 
         if result.get(
             "requires_approval"
@@ -414,10 +402,6 @@ if __name__ == "__main__":
                     "action_result"
                 )
             )
-
-        # --------------------------------------------------
-        # No Approval Needed
-        # --------------------------------------------------
 
         else:
 
