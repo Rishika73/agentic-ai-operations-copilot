@@ -1,8 +1,8 @@
 from typing import Dict, Any
-import sqlite3
+import uuid
 
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 
 from app.state import AgentState
@@ -21,23 +21,8 @@ from tools.ticket_tool import get_open_incidents
 from tools.knowledge_tool import search_knowledge
 
 
-# --------------------------------------------------
-# Persistent SQLite Checkpointer
-# --------------------------------------------------
+checkpointer = InMemorySaver()
 
-sqlite_connection = sqlite3.connect(
-    "agent_memory.db",
-    check_same_thread=False,
-)
-
-checkpointer = SqliteSaver(
-    sqlite_connection
-)
-
-
-# --------------------------------------------------
-# Router
-# --------------------------------------------------
 
 def route_query(state: AgentState) -> Dict[str, Any]:
     query = state["user_query"].lower()
@@ -59,14 +44,8 @@ def route_query(state: AgentState) -> Dict[str, Any]:
     else:
         route = "knowledge"
 
-    return {
-        "route": route
-    }
+    return {"route": route}
 
-
-# --------------------------------------------------
-# Account Risk Node
-# --------------------------------------------------
 
 def account_risk_node(state: AgentState) -> Dict[str, Any]:
     accounts = get_at_risk_accounts()
@@ -83,10 +62,6 @@ def account_risk_node(state: AgentState) -> Dict[str, Any]:
     }
 
 
-# --------------------------------------------------
-# Incident Node
-# --------------------------------------------------
-
 def incident_node(state: AgentState) -> Dict[str, Any]:
     incidents = get_open_incidents()
 
@@ -100,36 +75,20 @@ def incident_node(state: AgentState) -> Dict[str, Any]:
     }
 
 
-# --------------------------------------------------
-# Knowledge Node
-# --------------------------------------------------
-
 def knowledge_node(state: AgentState) -> Dict[str, Any]:
-    results = search_knowledge(
-        state["user_query"]
-    )
+    results = search_knowledge(state["user_query"])
 
     return {
         "retrieved_context": results
     }
 
 
-# --------------------------------------------------
-# LLM Synthesis
-# --------------------------------------------------
-
 def synthesis_node(state: AgentState) -> Dict[str, Any]:
     answer = generate_operational_answer(
         user_query=state["user_query"],
         route=state["route"],
-        tool_results=state.get(
-            "tool_results",
-            [],
-        ),
-        retrieved_context=state.get(
-            "retrieved_context",
-            [],
-        ),
+        tool_results=state.get("tool_results", []),
+        retrieved_context=state.get("retrieved_context", []),
     )
 
     return {
@@ -137,64 +96,23 @@ def synthesis_node(state: AgentState) -> Dict[str, Any]:
     }
 
 
-# --------------------------------------------------
-# Route Selector
-# --------------------------------------------------
-
 def choose_route(state: AgentState) -> str:
     return state["route"]
 
 
-# --------------------------------------------------
-# Build Graph
-# --------------------------------------------------
-
 def build_graph():
     graph = StateGraph(AgentState)
 
-    graph.add_node(
-        "router",
-        route_query,
-    )
+    graph.add_node("router", route_query)
+    graph.add_node("account_risk", account_risk_node)
+    graph.add_node("incident", incident_node)
+    graph.add_node("knowledge", knowledge_node)
+    graph.add_node("synthesis", synthesis_node)
+    graph.add_node("action_proposal", propose_action)
+    graph.add_node("human_approval", human_approval_node)
+    graph.add_node("execute_action", execute_action)
 
-    graph.add_node(
-        "account_risk",
-        account_risk_node,
-    )
-
-    graph.add_node(
-        "incident",
-        incident_node,
-    )
-
-    graph.add_node(
-        "knowledge",
-        knowledge_node,
-    )
-
-    graph.add_node(
-        "synthesis",
-        synthesis_node,
-    )
-
-    graph.add_node(
-        "action_proposal",
-        propose_action,
-    )
-
-    graph.add_node(
-        "human_approval",
-        human_approval_node,
-    )
-
-    graph.add_node(
-        "execute_action",
-        execute_action,
-    )
-
-    graph.set_entry_point(
-        "router"
-    )
+    graph.set_entry_point("router")
 
     graph.add_conditional_edges(
         "router",
@@ -206,40 +124,14 @@ def build_graph():
         },
     )
 
-    graph.add_edge(
-        "account_risk",
-        "synthesis",
-    )
+    graph.add_edge("account_risk", "synthesis")
+    graph.add_edge("incident", "synthesis")
+    graph.add_edge("knowledge", "synthesis")
 
-    graph.add_edge(
-        "incident",
-        "synthesis",
-    )
-
-    graph.add_edge(
-        "knowledge",
-        "synthesis",
-    )
-
-    graph.add_edge(
-        "synthesis",
-        "action_proposal",
-    )
-
-    graph.add_edge(
-        "action_proposal",
-        "human_approval",
-    )
-
-    graph.add_edge(
-        "human_approval",
-        "execute_action",
-    )
-
-    graph.add_edge(
-        "execute_action",
-        END,
-    )
+    graph.add_edge("synthesis", "action_proposal")
+    graph.add_edge("action_proposal", "human_approval")
+    graph.add_edge("human_approval", "execute_action")
+    graph.add_edge("execute_action", END)
 
     return graph.compile(
         checkpointer=checkpointer
@@ -249,14 +141,7 @@ def build_graph():
 agent_graph = build_graph()
 
 
-# --------------------------------------------------
-# Start Agent
-# --------------------------------------------------
-
-def run_agent(
-    query: str,
-    thread_id: str,
-):
+def run_agent(query: str, thread_id: str):
     config = {
         "configurable": {
             "thread_id": thread_id
@@ -271,14 +156,7 @@ def run_agent(
     )
 
 
-# --------------------------------------------------
-# Resume Agent
-# --------------------------------------------------
-
-def resume_agent(
-    decision: str,
-    thread_id: str,
-):
+def resume_agent(decision: str, thread_id: str):
     config = {
         "configurable": {
             "thread_id": thread_id
@@ -286,32 +164,18 @@ def resume_agent(
     }
 
     return agent_graph.invoke(
-        Command(
-            resume=decision
-        ),
+        Command(resume=decision),
         config=config,
     )
 
 
-# --------------------------------------------------
-# CLI Demo
-# --------------------------------------------------
-
 if __name__ == "__main__":
-
-    # IMPORTANT:
-    # Fixed thread ID so SQLite can persist this thread
-    # across different Python / Terminal sessions.
-    thread_id = "demo-operations-thread"
 
     questions = [
         "Which customer accounts are at risk?",
         "What open incidents do we have?",
         "What is the policy for critical incident response?",
     ]
-
-    print("\nUSING THREAD")
-    print(thread_id)
 
     for question in questions:
 
@@ -320,62 +184,39 @@ if __name__ == "__main__":
         print("\nQUESTION")
         print(question)
 
+        thread_id = str(uuid.uuid4())
+
         result = run_agent(
             question,
             thread_id,
         )
 
         print("\nRESULT")
-        print(
-            result.get(
-                "final_answer"
-            )
-        )
+        print(result.get("final_answer"))
 
         print("\nPROPOSED ACTION")
-        print(
-            result.get(
-                "proposed_action"
-            )
-        )
+        print(result.get("proposed_action"))
 
         print("\nAPPROVAL REQUIRED")
-        print(
-            result.get(
-                "requires_approval"
-            )
-        )
+        print(result.get("requires_approval"))
 
         print("\nAPPROVAL STATUS")
-        print(
-            result.get(
-                "approval_status"
-            )
-        )
+        print(result.get("approval_status"))
 
-        if result.get(
-            "requires_approval"
-        ):
+        if result.get("requires_approval"):
 
             print(
-                "\nHuman approval is required "
-                "before continuing."
+                "\nHuman approval is required before continuing."
             )
 
             decision = input(
-                "Approve action? "
-                "(approve/reject): "
+                "Approve action? (approve/reject): "
             ).strip().lower()
 
             if decision not in {
                 "approve",
                 "reject",
             }:
-                print(
-                    "\nInvalid response. "
-                    "Defaulting to reject."
-                )
-
                 decision = "reject"
 
             resumed_result = resume_agent(
@@ -383,20 +224,14 @@ if __name__ == "__main__":
                 thread_id,
             )
 
-            print(
-                "\nFINAL APPROVAL STATUS"
-            )
-
+            print("\nFINAL APPROVAL STATUS")
             print(
                 resumed_result.get(
                     "approval_status"
                 )
             )
 
-            print(
-                "\nACTION RESULT"
-            )
-
+            print("\nACTION RESULT")
             print(
                 resumed_result.get(
                     "action_result"
@@ -404,15 +239,11 @@ if __name__ == "__main__":
             )
 
         else:
-
             print(
                 "\nNo human approval required."
             )
 
-            print(
-                "\nACTION RESULT"
-            )
-
+            print("\nACTION RESULT")
             print(
                 result.get(
                     "action_result"
