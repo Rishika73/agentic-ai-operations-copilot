@@ -1,0 +1,22 @@
+[
+  {
+    "topic": "critical incident response",
+    "content": "Critical incidents require immediate acknowledgement, assignment to the owning engineering team, customer communication within 30 minutes, and executive escalation when a strategic enterprise account is affected."
+  },
+  {
+    "topic": "high priority incident response",
+    "content": "High priority incidents should be acknowledged within 30 minutes, investigated by the owning team, and communicated to affected customers with regular status updates until resolution."
+  },
+  {
+    "topic": "renewal risk",
+    "content": "Accounts renewing within 30 days with low health scores, unresolved critical incidents, or repeated support issues should be reviewed by Customer Success and Account Management for proactive retention planning."
+  },
+  {
+    "topic": "customer health",
+    "content": "Customer health should be assessed using support severity, unresolved incidents, product adoption, renewal timing, and account value rather than relying on a single signal."
+  },
+  {
+    "topic": "human approval",
+    "content": "Actions that contact customers, modify production systems, change account status, or create high-impact operational changes require explicit human approval before execution."
+  }
+]
