@@ -17,16 +17,8 @@ from tools.ticket_tool import get_open_incidents
 from tools.knowledge_tool import search_knowledge
 
 
-# --------------------------------------------------
-# Checkpointer
-# --------------------------------------------------
-
 checkpointer = InMemorySaver()
 
-
-# --------------------------------------------------
-# Router
-# --------------------------------------------------
 
 def route_query(state: AgentState) -> Dict[str, Any]:
     query = state["user_query"].lower()
@@ -48,14 +40,8 @@ def route_query(state: AgentState) -> Dict[str, Any]:
     else:
         route = "knowledge"
 
-    return {
-        "route": route
-    }
+    return {"route": route}
 
-
-# --------------------------------------------------
-# CRM / Account Risk Tool Node
-# --------------------------------------------------
 
 def account_risk_node(state: AgentState) -> Dict[str, Any]:
     accounts = get_at_risk_accounts()
@@ -72,10 +58,6 @@ def account_risk_node(state: AgentState) -> Dict[str, Any]:
     }
 
 
-# --------------------------------------------------
-# Incident Tool Node
-# --------------------------------------------------
-
 def incident_node(state: AgentState) -> Dict[str, Any]:
     incidents = get_open_incidents()
 
@@ -89,36 +71,20 @@ def incident_node(state: AgentState) -> Dict[str, Any]:
     }
 
 
-# --------------------------------------------------
-# Knowledge Node
-# --------------------------------------------------
-
 def knowledge_node(state: AgentState) -> Dict[str, Any]:
-    results = search_knowledge(
-        state["user_query"]
-    )
+    results = search_knowledge(state["user_query"])
 
     return {
         "retrieved_context": results
     }
 
 
-# --------------------------------------------------
-# LLM Synthesis
-# --------------------------------------------------
-
 def synthesis_node(state: AgentState) -> Dict[str, Any]:
     answer = generate_operational_answer(
         user_query=state["user_query"],
         route=state["route"],
-        tool_results=state.get(
-            "tool_results",
-            [],
-        ),
-        retrieved_context=state.get(
-            "retrieved_context",
-            [],
-        ),
+        tool_results=state.get("tool_results", []),
+        retrieved_context=state.get("retrieved_context", []),
     )
 
     return {
@@ -126,63 +92,23 @@ def synthesis_node(state: AgentState) -> Dict[str, Any]:
     }
 
 
-# --------------------------------------------------
-# Conditional Router
-# --------------------------------------------------
-
 def choose_route(state: AgentState) -> str:
     return state["route"]
 
 
-# --------------------------------------------------
-# Build LangGraph
-# --------------------------------------------------
-
 def build_graph():
     graph = StateGraph(AgentState)
 
-    # Nodes
-    graph.add_node(
-        "router",
-        route_query,
-    )
+    graph.add_node("router", route_query)
+    graph.add_node("account_risk", account_risk_node)
+    graph.add_node("incident", incident_node)
+    graph.add_node("knowledge", knowledge_node)
+    graph.add_node("synthesis", synthesis_node)
+    graph.add_node("action_proposal", propose_action)
+    graph.add_node("human_approval", human_approval_node)
 
-    graph.add_node(
-        "account_risk",
-        account_risk_node,
-    )
+    graph.set_entry_point("router")
 
-    graph.add_node(
-        "incident",
-        incident_node,
-    )
-
-    graph.add_node(
-        "knowledge",
-        knowledge_node,
-    )
-
-    graph.add_node(
-        "synthesis",
-        synthesis_node,
-    )
-
-    graph.add_node(
-        "action_proposal",
-        propose_action,
-    )
-
-    graph.add_node(
-        "human_approval",
-        human_approval_node,
-    )
-
-    # Entry point
-    graph.set_entry_point(
-        "router"
-    )
-
-    # Routing
     graph.add_conditional_edges(
         "router",
         choose_route,
@@ -193,39 +119,13 @@ def build_graph():
         },
     )
 
-    # Tool -> synthesis
-    graph.add_edge(
-        "account_risk",
-        "synthesis",
-    )
+    graph.add_edge("account_risk", "synthesis")
+    graph.add_edge("incident", "synthesis")
+    graph.add_edge("knowledge", "synthesis")
 
-    graph.add_edge(
-        "incident",
-        "synthesis",
-    )
-
-    graph.add_edge(
-        "knowledge",
-        "synthesis",
-    )
-
-    # Synthesis -> action proposal
-    graph.add_edge(
-        "synthesis",
-        "action_proposal",
-    )
-
-    # Proposed action -> human approval
-    graph.add_edge(
-        "action_proposal",
-        "human_approval",
-    )
-
-    # Approval -> finish
-    graph.add_edge(
-        "human_approval",
-        END,
-    )
+    graph.add_edge("synthesis", "action_proposal")
+    graph.add_edge("action_proposal", "human_approval")
+    graph.add_edge("human_approval", END)
 
     return graph.compile(
         checkpointer=checkpointer
@@ -235,14 +135,7 @@ def build_graph():
 agent_graph = build_graph()
 
 
-# --------------------------------------------------
-# Start Agent
-# --------------------------------------------------
-
-def run_agent(
-    query: str,
-    thread_id: str,
-):
+def run_agent(query: str, thread_id: str):
     config = {
         "configurable": {
             "thread_id": thread_id
@@ -257,14 +150,7 @@ def run_agent(
     )
 
 
-# --------------------------------------------------
-# Resume After Human Approval
-# --------------------------------------------------
-
-def resume_agent(
-    decision: str,
-    thread_id: str,
-):
+def resume_agent(decision: str, thread_id: str):
     config = {
         "configurable": {
             "thread_id": thread_id
@@ -272,16 +158,10 @@ def resume_agent(
     }
 
     return agent_graph.invoke(
-        Command(
-            resume=decision
-        ),
+        Command(resume=decision),
         config=config,
     )
 
-
-# --------------------------------------------------
-# CLI Demo
-# --------------------------------------------------
 
 if __name__ == "__main__":
 
@@ -298,10 +178,7 @@ if __name__ == "__main__":
         print("\nQUESTION")
         print(question)
 
-        # Unique conversation/thread
-        thread_id = str(
-            uuid.uuid4()
-        )
+        thread_id = str(uuid.uuid4())
 
         result = run_agent(
             question,
@@ -309,49 +186,25 @@ if __name__ == "__main__":
         )
 
         print("\nRESULT")
-        print(
-            result.get(
-                "final_answer"
-            )
-        )
+        print(result.get("final_answer"))
 
         print("\nPROPOSED ACTION")
-        print(
-            result.get(
-                "proposed_action"
-            )
-        )
+        print(result.get("proposed_action"))
 
         print("\nAPPROVAL REQUIRED")
-        print(
-            result.get(
-                "requires_approval"
-            )
-        )
+        print(result.get("requires_approval"))
 
         print("\nAPPROVAL STATUS")
-        print(
-            result.get(
-                "approval_status"
-            )
-        )
+        print(result.get("approval_status"))
 
-        # ------------------------------------------
-        # Human approval
-        # ------------------------------------------
-
-        if result.get(
-            "requires_approval"
-        ):
+        if result.get("requires_approval"):
 
             print(
-                "\nHuman approval is required "
-                "before continuing."
+                "\nHuman approval is required before continuing."
             )
 
             decision = input(
-                "Approve action? "
-                "(approve/reject): "
+                "Approve action? (approve/reject): "
             ).strip().lower()
 
             if decision not in {
@@ -365,10 +218,7 @@ if __name__ == "__main__":
                 thread_id,
             )
 
-            print(
-                "\nFINAL APPROVAL STATUS"
-            )
-
+            print("\nFINAL APPROVAL STATUS")
             print(
                 resumed_result.get(
                     "approval_status"
