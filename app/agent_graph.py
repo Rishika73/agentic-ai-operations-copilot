@@ -1,4 +1,5 @@
 from typing import Dict, Any
+from app.llm import generate_operational_answer
 
 from langgraph.graph import StateGraph, END
 
@@ -80,11 +81,14 @@ def choose_route(state: AgentState) -> str:
 
 def build_graph():
     graph = StateGraph(AgentState)
+    graph.add_node("synthesis", synthesis_node)
 
     graph.add_node("router", route_query)
-    graph.add_node("account_risk", account_risk_node)
-    graph.add_node("incident", incident_node)
-    graph.add_node("knowledge", knowledge_node)
+    graph.add_edge("account_risk", "synthesis")
+    graph.add_edge("incident", "synthesis")
+    graph.add_edge("knowledge", "synthesis")
+
+    graph.add_edge("synthesis", END)
 
     graph.set_entry_point("router")
 
@@ -114,6 +118,17 @@ def run_agent(query: str):
             "user_query": query
         }
     )
+def synthesis_node(state: AgentState) -> Dict[str, Any]:
+    answer = generate_operational_answer(
+        user_query=state["user_query"],
+        route=state["route"],
+        tool_results=state.get("tool_results", []),
+        retrieved_context=state.get("retrieved_context", []),
+    )
+
+    return {
+        "final_answer": answer
+    }   
 
 
 if __name__ == "__main__":
@@ -130,4 +145,4 @@ if __name__ == "__main__":
         result = run_agent(question)
 
         print("\nRESULT")
-        print(result)
+        print(result["final_answer"])
