@@ -87,3 +87,64 @@ def human_approval_node(state: AgentState) -> Dict[str, Any]:
             else "rejected"
         )
     }
+
+
+def execute_action(state: AgentState) -> Dict[str, Any]:
+    approval_status = state.get("approval_status")
+    proposed_action = state.get("proposed_action", {})
+
+    if approval_status == "not_required":
+        return {
+            "action_result": {
+                "status": "no_action",
+                "action_type": "no_action",
+                "message": (
+                    "No operational action was required."
+                ),
+            }
+        }
+
+    if approval_status != "approved":
+        return {
+            "action_result": {
+                "status": "not_executed",
+                "reason": (
+                    "Action was not approved by a human."
+                ),
+            }
+        }
+
+    action_type = proposed_action.get("action_type")
+
+    if action_type == "customer_outreach":
+        result = {
+            "status": "executed",
+            "action_type": "customer_outreach",
+            "message": (
+                "Prepared a customer-success outreach plan "
+                "for the highest-risk account."
+            ),
+        }
+
+    elif action_type == "incident_escalation":
+        result = {
+            "status": "executed",
+            "action_type": "incident_escalation",
+            "message": (
+                "Prepared an escalation record for the "
+                "highest-priority open incident."
+            ),
+        }
+
+    else:
+        result = {
+            "status": "no_action",
+            "action_type": "no_action",
+            "message": (
+                "No operational action was required."
+            ),
+        }
+
+    return {
+        "action_result": result
+    }
