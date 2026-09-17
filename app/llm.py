@@ -46,6 +46,8 @@ Rules:
 - If information is unavailable, say so.
 - Keep the response concise and operational.
 - Do not mention internal routing implementation details.
+- Never claim that you performed or can perform an action unless a real tool exists for that action.
+- Do not offer to escalate, notify, modify, or execute operational changes unless an execution tool is available.
 
 User question:
 {user_query}
