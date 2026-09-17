@@ -4,3 +4,4 @@ python-dotenv
 mcp[cli]
 numpy
 pytest
+langgraph-checkpoint-sqlite
