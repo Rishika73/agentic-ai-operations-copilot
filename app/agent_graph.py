@@ -24,10 +24,30 @@ from agents.knowledge_agent import run_knowledge_agent
 def router_node(state: AgentState) -> Dict[str, Any]:
     query = state.get("user_query", "").lower()
 
+    # Knowledge questions must be checked first.
+    # Example:
+    # "What is the policy for critical incident response?"
+    # contains "incident", but it is a knowledge request.
+    knowledge_keywords = [
+        "policy",
+        "procedure",
+        "procedures",
+        "runbook",
+        "guideline",
+        "guidelines",
+        "best practice",
+        "best practices",
+        "what is the policy",
+        "how should",
+        "how do we handle",
+        "what should we do",
+    ]
+
     incident_keywords = [
         "incident",
         "incidents",
         "outage",
+        "outages",
         "error",
         "errors",
         "failure",
@@ -35,6 +55,8 @@ def router_node(state: AgentState) -> Dict[str, Any]:
         "ticket",
         "tickets",
         "critical issue",
+        "open issue",
+        "open incidents",
     ]
 
     account_risk_keywords = [
@@ -49,7 +71,10 @@ def router_node(state: AgentState) -> Dict[str, Any]:
         "retention",
     ]
 
-    if any(keyword in query for keyword in incident_keywords):
+    if any(keyword in query for keyword in knowledge_keywords):
+        route = "knowledge"
+
+    elif any(keyword in query for keyword in incident_keywords):
         route = "incident"
 
     elif any(keyword in query for keyword in account_risk_keywords):
@@ -77,6 +102,7 @@ def incident_node(state: AgentState) -> Dict[str, Any]:
             "tool_results",
             [],
         ),
+        "retrieved_context": [],
         "final_answer": result.get(
             "answer",
             "",
@@ -94,6 +120,7 @@ def account_risk_node(state: AgentState) -> Dict[str, Any]:
             "tool_results",
             [],
         ),
+        "retrieved_context": [],
         "final_answer": result.get(
             "answer",
             "",
@@ -107,6 +134,7 @@ def knowledge_node(state: AgentState) -> Dict[str, Any]:
     )
 
     return {
+        "tool_results": [],
         "retrieved_context": result.get(
             "retrieved_context",
             [],
@@ -130,13 +158,16 @@ def select_route(state: AgentState) -> str:
 
 
 # ---------------------------------------------------------
-# Build LangGraph
+# Build graph
 # ---------------------------------------------------------
 
 def build_graph():
     graph = StateGraph(AgentState)
 
+    # -------------------------
     # Nodes
+    # -------------------------
+
     graph.add_node(
         "router",
         router_node,
@@ -172,12 +203,18 @@ def build_graph():
         execute_action,
     )
 
+    # -------------------------
     # Entry point
+    # -------------------------
+
     graph.set_entry_point(
         "router"
     )
 
-    # Router -> specialized agent
+    # -------------------------
+    # Router
+    # -------------------------
+
     graph.add_conditional_edges(
         "router",
         select_route,
@@ -188,7 +225,10 @@ def build_graph():
         },
     )
 
-    # Specialized agents -> action proposal
+    # -------------------------
+    # Specialized agents
+    # -------------------------
+
     graph.add_edge(
         "incident",
         "action_proposal",
@@ -204,7 +244,10 @@ def build_graph():
         "action_proposal",
     )
 
-    # Action workflow
+    # -------------------------
+    # Approval / execution
+    # -------------------------
+
     graph.add_edge(
         "action_proposal",
         "human_approval",
@@ -220,7 +263,10 @@ def build_graph():
         END,
     )
 
-    # Persistent SQLite checkpoint memory
+    # -------------------------
+    # Persistent SQLite memory
+    # -------------------------
+
     sqlite_connection = sqlite3.connect(
         "agent_memory.db",
         check_same_thread=False,
@@ -243,25 +289,20 @@ agent_graph = build_graph()
 
 
 # ---------------------------------------------------------
-# CLI
+# Command-line interface
 # ---------------------------------------------------------
 
 if __name__ == "__main__":
 
-    print(
-        "\nAgentic AI Operations Copilot"
-    )
-
-    print(
-        "-----------------------------"
-    )
+    print("\nAgentic AI Operations Copilot")
+    print("-----------------------------")
 
     user_query = input(
         "\nAsk an operations question: "
     ).strip()
 
-    # Fixed thread ID so LangGraph checkpoints
-    # persist between runs.
+    # Fixed thread ID allows checkpoint state
+    # to persist across executions.
     thread_id = "demo-operations-thread"
 
     config = {
@@ -278,6 +319,10 @@ if __name__ == "__main__":
         initial_state,
         config=config,
     )
+
+    # -----------------------------------------------------
+    # Main result
+    # -----------------------------------------------------
 
     print("\nROUTE")
     print(
