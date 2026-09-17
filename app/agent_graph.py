@@ -14,7 +14,15 @@ from tools.knowledge_tool import search_knowledge
 def route_query(state: AgentState) -> Dict[str, Any]:
     query = state["user_query"].lower()
 
-    if "risk" in query or "renew" in query:
+    if (
+        "policy" in query
+        or "procedure" in query
+        or "guideline" in query
+        or "how should" in query
+    ):
+        route = "knowledge"
+
+    elif "risk" in query or "renew" in query:
         route = "account_risk"
 
     elif "incident" in query or "ticket" in query:
