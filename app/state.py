@@ -12,6 +12,10 @@ class AgentState(TypedDict, total=False):
 
     final_answer: str
 
+    proposed_action: Dict[str, Any]
+
     requires_approval: bool
 
     approval_status: str
+
+    action_result: Dict[str, Any]
