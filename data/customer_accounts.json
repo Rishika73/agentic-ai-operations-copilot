@@ -1,0 +1,38 @@
+[
+  {
+    "customer": "Northstar Retail",
+    "account_tier": "enterprise",
+    "annual_contract_value": 420000,
+    "renewal_days": 45,
+    "health_score": 62,
+    "customer_success_owner": "Ava Patel",
+    "risk_level": "medium"
+  },
+  {
+    "customer": "BluePeak Finance",
+    "account_tier": "enterprise",
+    "annual_contract_value": 780000,
+    "renewal_days": 20,
+    "health_score": 48,
+    "customer_success_owner": "Daniel Kim",
+    "risk_level": "high"
+  },
+  {
+    "customer": "GreenField Health",
+    "account_tier": "business",
+    "annual_contract_value": 260000,
+    "renewal_days": 95,
+    "health_score": 76,
+    "customer_success_owner": "Maya Chen",
+    "risk_level": "low"
+  },
+  {
+    "customer": "Vertex Logistics",
+    "account_tier": "enterprise",
+    "annual_contract_value": 510000,
+    "renewal_days": 35,
+    "health_score": 55,
+    "customer_success_owner": "Noah Williams",
+    "risk_level": "high"
+  }
+]
