@@ -1,259 +1,371 @@
+import sqlite3
 from typing import Dict, Any
-import uuid
 
 from langgraph.graph import StateGraph, END
-import sqlite3
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 
 from app.state import AgentState
-from app.llm import generate_operational_answer
 from app.actions import (
     propose_action,
     human_approval_node,
     execute_action,
 )
 
-from tools.crm_tool import (
-    get_at_risk_accounts,
-    get_accounts_renewing_within,
-)
-from tools.ticket_tool import get_open_incidents
-from tools.knowledge_tool import search_knowledge
+from agents.incident_agent import run_incident_agent
+from agents.account_risk_agent import run_account_risk_agent
+from agents.knowledge_agent import run_knowledge_agent
 
 
-sqlite_connection = sqlite3.connect(
-    "agent_memory.db",
-    check_same_thread=False,
-)
+# ---------------------------------------------------------
+# Router
+# ---------------------------------------------------------
 
-checkpointer = SqliteSaver(
-    sqlite_connection
-)
+def router_node(state: AgentState) -> Dict[str, Any]:
+    query = state.get("user_query", "").lower()
 
+    incident_keywords = [
+        "incident",
+        "incidents",
+        "outage",
+        "error",
+        "errors",
+        "failure",
+        "failures",
+        "ticket",
+        "tickets",
+        "critical issue",
+    ]
 
-def route_query(state: AgentState) -> Dict[str, Any]:
-    query = state["user_query"].lower()
+    account_risk_keywords = [
+        "account",
+        "accounts",
+        "customer risk",
+        "at risk",
+        "renewal",
+        "renewals",
+        "health score",
+        "customer health",
+        "retention",
+    ]
 
-    if (
-        "policy" in query
-        or "procedure" in query
-        or "guideline" in query
-        or "how should" in query
-    ):
-        route = "knowledge"
-
-    elif "risk" in query or "renew" in query:
-        route = "account_risk"
-
-    elif "incident" in query or "ticket" in query:
+    if any(keyword in query for keyword in incident_keywords):
         route = "incident"
+
+    elif any(keyword in query for keyword in account_risk_keywords):
+        route = "account_risk"
 
     else:
         route = "knowledge"
 
-    return {"route": route}
-
-
-def account_risk_node(state: AgentState) -> Dict[str, Any]:
-    accounts = get_at_risk_accounts()
-    renewals = get_accounts_renewing_within(30)
-
     return {
-        "tool_results": [
-            {
-                "tool": "crm",
-                "at_risk_accounts": accounts,
-                "renewing_within_30_days": renewals,
-            }
-        ]
+        "route": route,
     }
 
 
+# ---------------------------------------------------------
+# Specialized agent nodes
+# ---------------------------------------------------------
+
 def incident_node(state: AgentState) -> Dict[str, Any]:
-    incidents = get_open_incidents()
+    result = run_incident_agent(
+        state["user_query"]
+    )
 
     return {
-        "tool_results": [
-            {
-                "tool": "support_tickets",
-                "open_incidents": incidents,
-            }
-        ]
+        "tool_results": result.get(
+            "tool_results",
+            [],
+        ),
+        "final_answer": result.get(
+            "answer",
+            "",
+        ),
+    }
+
+
+def account_risk_node(state: AgentState) -> Dict[str, Any]:
+    result = run_account_risk_agent(
+        state["user_query"]
+    )
+
+    return {
+        "tool_results": result.get(
+            "tool_results",
+            [],
+        ),
+        "final_answer": result.get(
+            "answer",
+            "",
+        ),
     }
 
 
 def knowledge_node(state: AgentState) -> Dict[str, Any]:
-    results = search_knowledge(state["user_query"])
-
-    return {
-        "retrieved_context": results
-    }
-
-
-def synthesis_node(state: AgentState) -> Dict[str, Any]:
-    answer = generate_operational_answer(
-        user_query=state["user_query"],
-        route=state["route"],
-        tool_results=state.get("tool_results", []),
-        retrieved_context=state.get("retrieved_context", []),
+    result = run_knowledge_agent(
+        state["user_query"]
     )
 
     return {
-        "final_answer": answer
+        "retrieved_context": result.get(
+            "retrieved_context",
+            [],
+        ),
+        "final_answer": result.get(
+            "answer",
+            "",
+        ),
     }
 
 
-def choose_route(state: AgentState) -> str:
-    return state["route"]
+# ---------------------------------------------------------
+# Route selector
+# ---------------------------------------------------------
 
+def select_route(state: AgentState) -> str:
+    return state.get(
+        "route",
+        "knowledge",
+    )
+
+
+# ---------------------------------------------------------
+# Build LangGraph
+# ---------------------------------------------------------
 
 def build_graph():
     graph = StateGraph(AgentState)
 
-    graph.add_node("router", route_query)
-    graph.add_node("account_risk", account_risk_node)
-    graph.add_node("incident", incident_node)
-    graph.add_node("knowledge", knowledge_node)
-    graph.add_node("synthesis", synthesis_node)
-    graph.add_node("action_proposal", propose_action)
-    graph.add_node("human_approval", human_approval_node)
-    graph.add_node("execute_action", execute_action)
+    # Nodes
+    graph.add_node(
+        "router",
+        router_node,
+    )
 
-    graph.set_entry_point("router")
+    graph.add_node(
+        "incident",
+        incident_node,
+    )
 
+    graph.add_node(
+        "account_risk",
+        account_risk_node,
+    )
+
+    graph.add_node(
+        "knowledge",
+        knowledge_node,
+    )
+
+    graph.add_node(
+        "action_proposal",
+        propose_action,
+    )
+
+    graph.add_node(
+        "human_approval",
+        human_approval_node,
+    )
+
+    graph.add_node(
+        "execute_action",
+        execute_action,
+    )
+
+    # Entry point
+    graph.set_entry_point(
+        "router"
+    )
+
+    # Router -> specialized agent
     graph.add_conditional_edges(
         "router",
-        choose_route,
+        select_route,
         {
-            "account_risk": "account_risk",
             "incident": "incident",
+            "account_risk": "account_risk",
             "knowledge": "knowledge",
         },
     )
 
-    graph.add_edge("account_risk", "synthesis")
-    graph.add_edge("incident", "synthesis")
-    graph.add_edge("knowledge", "synthesis")
+    # Specialized agents -> action proposal
+    graph.add_edge(
+        "incident",
+        "action_proposal",
+    )
 
-    graph.add_edge("synthesis", "action_proposal")
-    graph.add_edge("action_proposal", "human_approval")
-    graph.add_edge("human_approval", "execute_action")
-    graph.add_edge("execute_action", END)
+    graph.add_edge(
+        "account_risk",
+        "action_proposal",
+    )
+
+    graph.add_edge(
+        "knowledge",
+        "action_proposal",
+    )
+
+    # Action workflow
+    graph.add_edge(
+        "action_proposal",
+        "human_approval",
+    )
+
+    graph.add_edge(
+        "human_approval",
+        "execute_action",
+    )
+
+    graph.add_edge(
+        "execute_action",
+        END,
+    )
+
+    # Persistent SQLite checkpoint memory
+    sqlite_connection = sqlite3.connect(
+        "agent_memory.db",
+        check_same_thread=False,
+    )
+
+    checkpointer = SqliteSaver(
+        sqlite_connection
+    )
 
     return graph.compile(
         checkpointer=checkpointer
     )
 
 
+# ---------------------------------------------------------
+# Graph instance
+# ---------------------------------------------------------
+
 agent_graph = build_graph()
 
 
-def run_agent(query: str, thread_id: str):
-    config = {
-        "configurable": {
-            "thread_id": thread_id
-        }
-    }
-
-    return agent_graph.invoke(
-        {
-            "user_query": query
-        },
-        config=config,
-    )
-
-
-def resume_agent(decision: str, thread_id: str):
-    config = {
-        "configurable": {
-            "thread_id": thread_id
-        }
-    }
-
-    return agent_graph.invoke(
-        Command(resume=decision),
-        config=config,
-    )
-
+# ---------------------------------------------------------
+# CLI
+# ---------------------------------------------------------
 
 if __name__ == "__main__":
 
-    questions = [
-        "Which customer accounts are at risk?",
-        "What open incidents do we have?",
-        "What is the policy for critical incident response?",
-    ]
+    print(
+        "\nAgentic AI Operations Copilot"
+    )
 
-    for question in questions:
+    print(
+        "-----------------------------"
+    )
 
-        print("\n" + "=" * 70)
+    user_query = input(
+        "\nAsk an operations question: "
+    ).strip()
 
-        print("\nQUESTION")
-        print(question)
+    # Fixed thread ID so LangGraph checkpoints
+    # persist between runs.
+    thread_id = "demo-operations-thread"
 
-        thread_id = "demo-operations-thread"
+    config = {
+        "configurable": {
+            "thread_id": thread_id,
+        }
+    }
 
-        result = run_agent(
-            question,
-            thread_id,
+    initial_state = {
+        "user_query": user_query,
+    }
+
+    result = agent_graph.invoke(
+        initial_state,
+        config=config,
+    )
+
+    print("\nROUTE")
+    print(
+        result.get(
+            "route",
+            "unknown",
+        )
+    )
+
+    print("\nANSWER")
+    print(
+        result.get(
+            "final_answer",
+            "No answer generated.",
+        )
+    )
+
+    print("\nPROPOSED ACTION")
+    print(
+        result.get(
+            "proposed_action"
+        )
+    )
+
+    print("\nAPPROVAL REQUIRED")
+    print(
+        result.get(
+            "requires_approval",
+            False,
+        )
+    )
+
+    print("\nAPPROVAL STATUS")
+    print(
+        result.get(
+            "approval_status"
+        )
+    )
+
+    # -----------------------------------------------------
+    # Human-in-the-loop approval
+    # -----------------------------------------------------
+
+    if "__interrupt__" in result:
+
+        print(
+            "\nHuman approval is required."
         )
 
-        print("\nRESULT")
-        print(result.get("final_answer"))
+        decision = input(
+            "Approve or reject? "
+        ).strip().lower()
 
-        print("\nPROPOSED ACTION")
-        print(result.get("proposed_action"))
+        resumed_result = agent_graph.invoke(
+            Command(
+                resume=decision
+            ),
+            config=config,
+        )
 
-        print("\nAPPROVAL REQUIRED")
-        print(result.get("requires_approval"))
+        print(
+            "\nFINAL APPROVAL STATUS"
+        )
 
-        print("\nAPPROVAL STATUS")
-        print(result.get("approval_status"))
-
-        if result.get("requires_approval"):
-
-            print(
-                "\nHuman approval is required before continuing."
+        print(
+            resumed_result.get(
+                "approval_status"
             )
+        )
 
-            decision = input(
-                "Approve action? (approve/reject): "
-            ).strip().lower()
+        print(
+            "\nACTION RESULT"
+        )
 
-            if decision not in {
-                "approve",
-                "reject",
-            }:
-                decision = "reject"
-
-            resumed_result = resume_agent(
-                decision,
-                thread_id,
+        print(
+            resumed_result.get(
+                "action_result"
             )
+        )
 
-            print("\nFINAL APPROVAL STATUS")
-            print(
-                resumed_result.get(
-                    "approval_status"
-                )
-            )
+    else:
 
-            print("\nACTION RESULT")
-            print(
-                resumed_result.get(
-                    "action_result"
-                )
-            )
+        print(
+            "\nACTION RESULT"
+        )
 
-        else:
-            print(
-                "\nNo human approval required."
+        print(
+            result.get(
+                "action_result"
             )
-
-            print("\nACTION RESULT")
-            print(
-                result.get(
-                    "action_result"
-                )
-            )
+        )
