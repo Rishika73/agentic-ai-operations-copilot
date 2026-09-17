@@ -2,7 +2,8 @@ from typing import Dict, Any
 import uuid
 
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import InMemorySaver
+import sqlite3
+from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 
 from app.state import AgentState
@@ -21,7 +22,14 @@ from tools.ticket_tool import get_open_incidents
 from tools.knowledge_tool import search_knowledge
 
 
-checkpointer = InMemorySaver()
+sqlite_connection = sqlite3.connect(
+    "agent_memory.db",
+    check_same_thread=False,
+)
+
+checkpointer = SqliteSaver(
+    sqlite_connection
+)
 
 
 def route_query(state: AgentState) -> Dict[str, Any]:
