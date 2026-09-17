@@ -1,0 +1,10 @@
+.venv
+venv
+__pycache__
+*.pyc
+.env
+agent_memory.db
+.git
+.github
+.DS_Store
+.pytest_cache
