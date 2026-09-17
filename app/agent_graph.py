@@ -192,7 +192,7 @@ if __name__ == "__main__":
         print("\nQUESTION")
         print(question)
 
-        thread_id = str(uuid.uuid4())
+        thread_id = "demo-operations-thread"
 
         result = run_agent(
             question,
