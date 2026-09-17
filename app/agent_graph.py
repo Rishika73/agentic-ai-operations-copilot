@@ -81,14 +81,8 @@ def synthesis_node(state: AgentState) -> Dict[str, Any]:
     answer = generate_operational_answer(
         user_query=state["user_query"],
         route=state["route"],
-        tool_results=state.get(
-            "tool_results",
-            [],
-        ),
-        retrieved_context=state.get(
-            "retrieved_context",
-            [],
-        ),
+        tool_results=state.get("tool_results", []),
+        retrieved_context=state.get("retrieved_context", []),
     )
 
     return {
@@ -103,43 +97,15 @@ def choose_route(state: AgentState) -> str:
 def build_graph():
     graph = StateGraph(AgentState)
 
-    # Nodes
-    graph.add_node(
-        "router",
-        route_query,
-    )
+    graph.add_node("router", route_query)
+    graph.add_node("account_risk", account_risk_node)
+    graph.add_node("incident", incident_node)
+    graph.add_node("knowledge", knowledge_node)
+    graph.add_node("synthesis", synthesis_node)
+    graph.add_node("action_proposal", propose_action)
 
-    graph.add_node(
-        "account_risk",
-        account_risk_node,
-    )
+    graph.set_entry_point("router")
 
-    graph.add_node(
-        "incident",
-        incident_node,
-    )
-
-    graph.add_node(
-        "knowledge",
-        knowledge_node,
-    )
-
-    graph.add_node(
-        "synthesis",
-        synthesis_node,
-    )
-
-    graph.add_node(
-        "action_proposal",
-        propose_action,
-    )
-
-    # Entry point
-    graph.set_entry_point(
-        "router"
-    )
-
-    # Router
     graph.add_conditional_edges(
         "router",
         choose_route,
@@ -150,34 +116,12 @@ def build_graph():
         },
     )
 
-    # Tool nodes -> LLM synthesis
-    graph.add_edge(
-        "account_risk",
-        "synthesis",
-    )
+    graph.add_edge("account_risk", "synthesis")
+    graph.add_edge("incident", "synthesis")
+    graph.add_edge("knowledge", "synthesis")
 
-    graph.add_edge(
-        "incident",
-        "synthesis",
-    )
-
-    graph.add_edge(
-        "knowledge",
-        "synthesis",
-    )
-
-    # LLM analysis -> action proposal
-    graph.add_edge(
-        "synthesis",
-        "action_proposal",
-    )
-
-    # For now, proposed actions stop here.
-    # Actual execution will be added after human approval.
-    graph.add_edge(
-        "action_proposal",
-        END,
-    )
+    graph.add_edge("synthesis", "action_proposal")
+    graph.add_edge("action_proposal", END)
 
     return graph.compile()
 
@@ -206,32 +150,16 @@ if __name__ == "__main__":
         print("\nQUESTION")
         print(question)
 
-        result = run_agent(
-            question
-        )
+        result = run_agent(question)
 
         print("\nRESULT")
-        print(
-            result["final_answer"]
-        )
+        print(result["final_answer"])
 
         print("\nPROPOSED ACTION")
-        print(
-            result.get(
-                "proposed_action"
-            )
-        )
+        print(result.get("proposed_action"))
 
         print("\nAPPROVAL REQUIRED")
-        print(
-            result.get(
-                "requires_approval"
-            )
-        )
+        print(result.get("requires_approval"))
 
         print("\nAPPROVAL STATUS")
-        print(
-            result.get(
-                "approval_status"
-            )
-        )
+        print(result.get("approval_status"))
