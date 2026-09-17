@@ -120,20 +120,32 @@ def execute_action(state: AgentState) -> Dict[str, Any]:
         result = {
             "status": "executed",
             "action_type": "customer_outreach",
-            "message": (
-                "Prepared a customer-success outreach plan "
-                "for the highest-risk account."
-            ),
+            "record": {
+                "target": "highest-risk account",
+                "purpose": "proactive retention outreach",
+                "approval_status": "approved",
+                "next_steps": [
+                    "Review account health and renewal risk",
+                    "Prepare customer-success outreach",
+                    "Coordinate with the account owner",
+                ],
+            },
         }
 
     elif action_type == "incident_escalation":
         result = {
             "status": "executed",
             "action_type": "incident_escalation",
-            "message": (
-                "Prepared an escalation record for the "
-                "highest-priority open incident."
-            ),
+            "record": {
+                "target": "highest-priority open incident",
+                "purpose": "incident escalation",
+                "approval_status": "approved",
+                "next_steps": [
+                    "Confirm owning engineering team",
+                    "Prepare escalation summary",
+                    "Track mitigation and status updates",
+                ],
+            },
         }
 
     else:
