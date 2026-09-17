@@ -1,5 +1,7 @@
 from typing import Dict, Any
 
+from langgraph.types import interrupt
+
 from app.state import AgentState
 
 
@@ -54,4 +56,34 @@ def propose_action(state: AgentState) -> Dict[str, Any]:
             if requires_approval
             else "not_required"
         ),
+    }
+
+
+def human_approval_node(state: AgentState) -> Dict[str, Any]:
+    if not state.get("requires_approval", False):
+        return {
+            "approval_status": "not_required"
+        }
+
+    decision = interrupt(
+        {
+            "message": "Human approval required",
+            "proposed_action": state.get("proposed_action"),
+        }
+    )
+
+    approved = str(decision).lower() in {
+        "approve",
+        "approved",
+        "yes",
+        "y",
+        "true",
+    }
+
+    return {
+        "approval_status": (
+            "approved"
+            if approved
+            else "rejected"
+        )
     }
