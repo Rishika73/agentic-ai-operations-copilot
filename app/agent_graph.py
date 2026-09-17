@@ -77,6 +77,17 @@ def knowledge_node(state: AgentState) -> Dict[str, Any]:
 
 def choose_route(state: AgentState) -> str:
     return state["route"]
+def synthesis_node(state: AgentState) -> Dict[str, Any]:
+    answer = generate_operational_answer(
+        user_query=state["user_query"],
+        route=state["route"],
+        tool_results=state.get("tool_results", []),
+        retrieved_context=state.get("retrieved_context", []),
+    )
+
+    return {
+        "final_answer": answer
+    }    
 
 
 def build_graph():
@@ -118,17 +129,6 @@ def run_agent(query: str):
             "user_query": query
         }
     )
-def synthesis_node(state: AgentState) -> Dict[str, Any]:
-    answer = generate_operational_answer(
-        user_query=state["user_query"],
-        route=state["route"],
-        tool_results=state.get("tool_results", []),
-        retrieved_context=state.get("retrieved_context", []),
-    )
-
-    return {
-        "final_answer": answer
-    }   
 
 
 if __name__ == "__main__":
