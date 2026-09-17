@@ -48,9 +48,11 @@ def search_tickets(
     return results
 
 
-def get_open_incidents() -> List[Dict]:
+def get_open_incidents():
+    tickets = load_tickets()
+
     return [
         ticket
-        for ticket in load_tickets()
-        if ticket["status"].lower() != "resolved"
+        for ticket in tickets
+        if ticket.get("status", "").lower() == "open"
     ]
