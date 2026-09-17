@@ -5,3 +5,5 @@ __pycache__/
 .venv/
 venv/
 agent_memory.db
+agent_memory.db-shm
+agent_memory.db-wal
