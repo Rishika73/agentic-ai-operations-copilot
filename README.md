@@ -11,7 +11,19 @@ The current implementation covers:
 - Incident management
 - Customer/account risk
 - Operations knowledge and policy retrieval
+## Live Deployment
 
+The FastAPI service is publicly deployed on Render:
+
+https://agentic-ai-operations-copilot.onrender.com
+
+Public health endpoint: `/health`
+
+Protected endpoints: `/ask` and `/approve`
+
+The protected endpoints require an `X-API-Key` header.
+
+Note: the free Render instance may have a cold-start delay after inactivity.
 ## Key Features
 
 ### Multi-Agent Workflow
