@@ -1,6 +1,8 @@
+import os
+import secrets
 from uuid import uuid4
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel
 from langgraph.types import Command
 
@@ -11,6 +13,27 @@ app = FastAPI(
     title="Agentic AI Operations Copilot",
     version="1.0.0",
 )
+
+
+def require_api_key(
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+):
+    expected_key = os.getenv("APP_API_KEY")
+
+    if not expected_key:
+        raise HTTPException(
+            status_code=500,
+            detail="Server API key is not configured.",
+        )
+
+    if not x_api_key or not secrets.compare_digest(
+        x_api_key,
+        expected_key,
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing API key.",
+        )
 
 
 class AskRequest(BaseModel):
@@ -38,7 +61,7 @@ def health():
     }
 
 
-@app.post("/ask")
+@app.post("/ask", dependencies=[Depends(require_api_key)])
 def ask(request: AskRequest):
     thread_id = request.thread_id or str(uuid4())
 
@@ -76,7 +99,7 @@ def ask(request: AskRequest):
     return response
 
 
-@app.post("/approve")
+@app.post("/approve", dependencies=[Depends(require_api_key)])
 def approve(request: ApprovalRequest):
     config = {
         "configurable": {

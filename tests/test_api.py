@@ -1,9 +1,29 @@
+import os
+
 from fastapi.testclient import TestClient
 
 from app.main import app
 
 
+TEST_API_KEY = "test-api-key"
+os.environ["APP_API_KEY"] = TEST_API_KEY
+
+AUTH_HEADERS = {
+    "X-API-Key": TEST_API_KEY,
+}
+
 client = TestClient(app)
+
+
+def test_root():
+    response = client.get("/")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["service"] == "Agentic AI Operations Copilot"
+    assert data["status"] == "running"
 
 
 def test_health():
@@ -11,13 +31,6 @@ def test_health():
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
-
-
-def test_root():
-    response = client.get("/")
-
-    assert response.status_code == 200
-    assert response.json()["status"] == "running"
 
 
 def test_knowledge_request(monkeypatch):
@@ -43,6 +56,7 @@ def test_knowledge_request(monkeypatch):
 
     response = client.post(
         "/ask",
+        headers=AUTH_HEADERS,
         json={
             "query": "What is the policy for critical incident response?"
         },
@@ -84,6 +98,7 @@ def test_incident_request_requires_approval(monkeypatch):
 
     response = client.post(
         "/ask",
+        headers=AUTH_HEADERS,
         json={
             "query": "What open incidents do we have?"
         },
@@ -115,6 +130,7 @@ def test_approval_endpoint(monkeypatch):
 
     response = client.post(
         "/approve",
+        headers=AUTH_HEADERS,
         json={
             "thread_id": "test-thread",
             "decision": "approve",
