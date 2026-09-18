@@ -286,7 +286,33 @@ GitHub Actions automatically runs the test suite on pushes and pull requests to 
 - Pytest
 - Docker
 - GitHub Actions
+## Observability & Performance
 
+LangSmith tracing is integrated to inspect LangGraph execution paths, node-level latency, and human-in-the-loop workflows.
+
+Tracing showed that most incident-workflow latency came from the LLM synthesis step rather than routing or approval logic.
+
+Observed incident workflow latency:
+```text
+Before prompt optimization:
+Total workflow: 19.10s
+LLM synthesis: 18.98s
+
+After prompt optimization:
+Total workflow: 9.66s
+LLM synthesis: 9.46s
+```
+
+Prompt simplification reduced the observed incident-response latency by roughly 50% in this test while preserving workflow behavior.
+
+LangSmith traces also capture:
+
+- Router execution
+- Specialized agent execution
+- Action proposal
+- Human approval interrupts
+- Resume after approval
+- Final action execution
 ## Current Scope
 
 The project uses synthetic JSON datasets for incidents, customer accounts, and operational knowledge.
@@ -299,7 +325,6 @@ Operational execution is simulated through structured action results. The projec
 
 - Persistent vector database
 - Hybrid retrieval and reranking
-- Observability and tracing
 - Larger evaluation suite
 - External operational-system integrations
 - Deployment
