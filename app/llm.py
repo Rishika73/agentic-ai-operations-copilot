@@ -1,9 +1,10 @@
+
 import json
 import os
 from typing import Any, Dict, List
 
 from dotenv import load_dotenv
-
+from langsmith import traceable
 load_dotenv()
 
 
@@ -21,6 +22,7 @@ def get_openai_client():
     )
 
 
+@traceable(name="generate_operational_answer")
 def generate_operational_answer(
     user_query: str,
     route: str,
@@ -37,29 +39,23 @@ def generate_operational_answer(
     prompt = f"""
 You are an enterprise AI operations copilot.
 
-Answer the user's question using ONLY the supplied operational data.
+Answer the user's question using only the supplied operational data.
 
 Rules:
 - Do not invent facts.
-- Clearly identify important incidents, account risks, or policies.
 - Prioritize critical and high-risk information.
-- If information is unavailable, say so.
+- If data is missing, say so.
 - Keep the response concise and operational.
-- Do not mention internal routing implementation details.
-- Never claim that you performed or can perform an action unless a real tool exists for that action.
-- Do not offer to escalate, notify, modify, or execute operational changes unless an execution tool is available.
-- Never claim that you performed an operational action.
-- Never claim that you can escalate, notify, contact, modify, or execute anything unless a real execution tool is available.
-- Do not offer to perform future actions that are not implemented.
-- You may recommend an action, but clearly present it only as a recommendation.
-- If an action would require approval, do not imply it has been executed.
+- Do not mention internal routing.
+- Do not claim an action was executed unless a real execution tool exists.
+- Recommendations must be clearly labeled as recommendations.
+
 User question:
 {user_query}
 
 Operational data:
 {json.dumps(payload, indent=2)}
 """
-
     client = get_openai_client()
 
     response = client.responses.create(
