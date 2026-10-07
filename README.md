@@ -1,4 +1,5 @@
 # Agentic AI Operations Copilot
+
 [![Tests](https://github.com/Rishika73/agentic-ai-operations-copilot/actions/workflows/tests.yml/badge.svg)](https://github.com/Rishika73/agentic-ai-operations-copilot/actions/workflows/tests.yml)
 
 A production-oriented multi-agent AI system for operational support, incident analysis, account risk detection, and internal knowledge retrieval.
@@ -11,10 +12,10 @@ The platform uses LangGraph for agent orchestration, OpenAI for reasoning and em
 
 The FastAPI service is deployed on Render.
 
-**Service Status**  
-https://agentic-ai-operations-copilot.onrender.com
+**Service Status:**  
+[agentic-ai-operations-copilot.onrender.com](https://agentic-ai-operations-copilot.onrender.com)
 
-Returns the current service status:
+The service status endpoint returns:
 
 ```json
 {
@@ -23,8 +24,8 @@ Returns the current service status:
 }
 ```
 
-**Interactive API Documentation**  
-https://agentic-ai-operations-copilot.onrender.com/docs
+**Interactive API Documentation:**  
+[Open Swagger UI](https://agentic-ai-operations-copilot.onrender.com/docs)
 
 The Swagger UI exposes the available API endpoints:
 
@@ -210,13 +211,15 @@ POST /ask
 POST /approve
 ```
 
-Example request:
+Example authenticated request:
+
 ```bash
 curl -X POST http://127.0.0.1:8000/ask \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your_app_api_key_here" \
   -d '{"query":"What open incidents do we have?"}'
 ```
+
 Requests that require approval return:
 
 ```text
@@ -302,6 +305,7 @@ APP_API_KEY=your_app_api_key_here
 ```
 
 Do not commit `.env`.
+
 ---
 
 ## Run the CLI
@@ -370,7 +374,15 @@ Test coverage includes:
 
 GitHub Actions runs the test suite automatically on pushes and pull requests to `main`.
 
-This provides automated validation for the agent workflow, retrieval logic, approval flow, and API behavior.
+This provides automated validation for:
+
+- Agent workflow behavior
+- Retrieval logic
+- Human approval flow
+- FastAPI endpoints
+- Application changes before integration
+
+The current workflow status is shown by the test badge at the top of this README.
 
 ---
 
@@ -408,21 +420,25 @@ LangSmith traces capture:
 ## Tech Stack
 
 ### AI & Orchestration
+
 - LangGraph
 - OpenAI API
 - OpenAI Embeddings
 - Model Context Protocol
 
 ### Backend
+
 - FastAPI
 - Python
 
 ### State & Retrieval
+
 - SQLite
 - NumPy
 - Semantic similarity search
 
 ### Engineering
+
 - Docker
 - Pytest
 - GitHub Actions
