@@ -1,127 +1,51 @@
 # Agentic AI Operations Copilot
 
-Multi-agent AI operations copilot built with LangGraph, OpenAI, MCP, semantic retrieval, SQLite checkpointing, FastAPI, Docker, GitHub Actions, and human-in-the-loop approvals.
+A production-style multi-agent AI system for operational support, incident analysis, account risk detection, and internal knowledge retrieval.
 
-## Overview
+The platform uses LangGraph for agent orchestration, OpenAI for reasoning and embeddings, FastAPI for serving workflows, MCP for tool access, SQLite checkpointing for resumable state, and human approval gates for higher-impact actions.
 
-This project routes operational questions to specialized agents, retrieves internal knowledge, inspects incident and customer data, proposes operational actions, and requires human approval before higher-impact workflows are executed.
+---
 
-The current implementation covers:
-
-- Incident management
-- Customer/account risk
-- Operations knowledge and policy retrieval
 ## Live Deployment
 
-The FastAPI service is publicly deployed on Render:
+The FastAPI service is deployed on Render:
 
+**Application**
 https://agentic-ai-operations-copilot.onrender.com
 
-Public health endpoint: `/health`
-
-Protected endpoints: `/ask` and `/approve`
-
-The protected endpoints require an `X-API-Key` header.
-
-Note: the free Render instance may have a cold-start delay after inactivity.
-Interactive API Documentation:
-
+**API Docs**
 https://agentic-ai-operations-copilot.onrender.com/docs
 
-## Key Features
+**Health Check**
+`GET /health`
 
-### Multi-Agent Workflow
-
-LangGraph routes requests to three specialized agents:
-
-- `incident_agent` — analyzes open support incidents
-- `account_risk_agent` — identifies high-risk customer accounts and renewal risk
-- `knowledge_agent` — retrieves operational policies and guidance
-
-### Semantic RAG
-
-The knowledge agent uses OpenAI embeddings and cosine similarity for semantic retrieval.
-
-Embedding model:
+Protected endpoints:
 
 ```text
-text-embedding-3-small
-```
-
-This allows semantically similar queries to retrieve the relevant operational guidance even when the wording differs.
-
-### MCP Server
-
-The project includes a working Model Context Protocol server.
-
-Available MCP tools:
-
-```text
-open_incidents
-at_risk_accounts
-accounts_renewing_within
-search_operations_knowledge
-```
-
-The MCP server has been verified using MCP Inspector.
-
-### Human-in-the-Loop Approval
-
-Higher-impact operational actions require explicit human approval.
-
-Examples:
-
-- Incident escalation
-- Customer-success outreach
-
-LangGraph `interrupt()` pauses execution until an action is approved or rejected.
-
-Knowledge-only requests do not require approval.
-
-### Persistent Workflow State
-
-LangGraph checkpoint state is persisted using SQLite.
-
-```text
-agent_memory.db
-```
-
-This allows interrupted workflows to resume using the same thread ID.
-
-SQLite database and runtime files are excluded from Git.
-
-## FastAPI Service
-
-Start the API:
-
-```bash
-PYTHONPATH=. uvicorn app.main:app --reload
-```
-
-Available endpoints:
-
-```text
-GET  /
-GET  /health
 POST /ask
 POST /approve
 ```
 
-Example request:
+These endpoints require an `X-API-Key` header.
 
-```bash
-curl -X POST http://127.0.0.1:8000/ask \
-  -H "Content-Type: application/json" \
-  -d '{"query":"What open incidents do we have?"}'
-```
+> The free Render instance may take a few seconds to start after periods of inactivity.
 
-Operational requests requiring approval return:
+---
 
-```text
-status: awaiting_approval
-```
+## What This Project Does
 
-The workflow can then be resumed through `/approve` using the returned `thread_id`.
+The system routes operational questions to specialized agents and combines structured tools, semantic retrieval, and approval-aware workflows.
+
+Current use cases include:
+
+- Incident analysis
+- Customer and account risk
+- Operations knowledge retrieval
+- Policy lookup
+- Action proposal
+- Human approval before higher-impact execution
+
+---
 
 ## Architecture
 
@@ -151,6 +75,147 @@ Ticket Tools          CRM Tools        Semantic RAG
                         v
                  Action Execution
 ```
+
+---
+
+## Multi-Agent Workflow
+
+LangGraph routes each request to one of three specialized agents:
+
+### Incident Agent
+
+Analyzes active support incidents and operational issues.
+
+```text
+incident_agent
+```
+
+### Account Risk Agent
+
+Identifies high-risk accounts and potential renewal issues.
+
+```text
+account_risk_agent
+```
+
+### Knowledge Agent
+
+Retrieves internal policies and operational guidance using semantic search.
+
+```text
+knowledge_agent
+```
+
+---
+
+## Semantic RAG
+
+The knowledge agent uses OpenAI embeddings and cosine similarity to retrieve relevant internal guidance.
+
+Embedding model:
+
+```text
+text-embedding-3-small
+```
+
+This allows the system to retrieve useful operational knowledge even when the user's wording differs from the source material.
+
+---
+
+## Model Context Protocol
+
+The project includes a working MCP server that exposes operational tools to AI clients.
+
+Available MCP tools:
+
+```text
+open_incidents
+at_risk_accounts
+accounts_renewing_within
+search_operations_knowledge
+```
+
+The MCP server has been tested using MCP Inspector.
+
+Run it locally with:
+
+```bash
+PYTHONPATH=. python -u mcp_server.py
+```
+
+Or inspect it with:
+
+```bash
+mcp dev mcp_server.py
+```
+
+---
+
+## Human-in-the-Loop Approval
+
+Higher-impact workflows require explicit human approval before execution.
+
+Examples include:
+
+- Incident escalation
+- Customer-success outreach
+
+LangGraph `interrupt()` pauses the workflow and returns an approval request.
+
+The same workflow can later resume using its `thread_id`.
+
+Knowledge-only requests do not require approval.
+
+---
+
+## Persistent Workflow State
+
+LangGraph checkpointing is backed by SQLite:
+
+```text
+agent_memory.db
+```
+
+This allows interrupted workflows to resume from stored state instead of restarting from the beginning.
+
+Runtime database files are excluded from Git.
+
+---
+
+## FastAPI Service
+
+Start the API locally:
+
+```bash
+PYTHONPATH=. uvicorn app.main:app --reload
+```
+
+Available endpoints:
+
+```text
+GET  /
+GET  /health
+POST /ask
+POST /approve
+```
+
+Example request:
+
+```bash
+curl -X POST http://127.0.0.1:8000/ask \
+  -H "Content-Type: application/json" \
+  -d '{"query":"What open incidents do we have?"}'
+```
+
+Requests that require approval return:
+
+```text
+status: awaiting_approval
+```
+
+The workflow can then be resumed through `/approve` using the returned `thread_id`.
+
+---
 
 ## Project Structure
 
@@ -191,6 +256,8 @@ agentic-ai-operations-copilot/
 └── README.md
 ```
 
+---
+
 ## Local Setup
 
 Create and activate a virtual environment:
@@ -216,6 +283,8 @@ Add your OpenAI API key to `.env`.
 
 Do not commit `.env`.
 
+---
+
 ## Run the CLI
 
 ```bash
@@ -230,19 +299,7 @@ Which customer accounts are at risk?
 What is the policy for critical incident response?
 ```
 
-## MCP Usage
-
-Start the MCP server:
-
-```bash
-PYTHONPATH=. python -u mcp_server.py
-```
-
-Run MCP Inspector:
-
-```bash
-mcp dev mcp_server.py
-```
+---
 
 ## Docker
 
@@ -260,15 +317,17 @@ docker run --rm -it \
   agentic-ai-operations-copilot
 ```
 
+---
+
 ## Testing
 
-Run the complete test suite:
+Run the full test suite:
 
 ```bash
 PYTHONPATH=. python -m pytest -q
 ```
 
-Current verified local result:
+Current verified result:
 
 ```text
 19 passed
@@ -280,35 +339,30 @@ Test coverage includes:
 - Human approval behavior
 - Safe action execution
 - Semantic knowledge retrieval
-- Similarity scoring and top-k retrieval
-- FastAPI health endpoint
-- FastAPI `/ask` endpoint
-- FastAPI approval workflow
+- Similarity scoring
+- Top-k retrieval
+- FastAPI health checks
+- `/ask` workflow
+- `/approve` workflow
 
-## CI
+---
 
-GitHub Actions automatically runs the test suite on pushes and pull requests to `main`.
+## CI/CD
 
-## Tech Stack
+GitHub Actions runs the test suite automatically on pushes and pull requests to `main`.
 
-- Python
-- LangGraph
-- OpenAI API
-- OpenAI Embeddings
-- Model Context Protocol (MCP)
-- FastAPI
-- SQLite
-- NumPy
-- Pytest
-- Docker
-- GitHub Actions
+This provides automated validation for the agent workflow, retrieval logic, approval flow, and API behavior.
+
+---
+
 ## Observability & Performance
 
-LangSmith tracing is integrated to inspect LangGraph execution paths, node-level latency, and human-in-the-loop workflows.
+LangSmith tracing is integrated to inspect LangGraph execution paths, node-level latency, and approval workflows.
 
-Tracing showed that most incident-workflow latency came from the LLM synthesis step rather than routing or approval logic.
+Tracing showed that the LLM synthesis step was the main contributor to incident-response latency.
 
 Observed incident workflow latency:
+
 ```text
 Before prompt optimization:
 Total workflow: 19.10s
@@ -319,28 +373,59 @@ Total workflow: 9.66s
 LLM synthesis: 9.46s
 ```
 
-Prompt simplification reduced the observed incident-response latency by roughly 50% in this test while preserving workflow behavior.
+Prompt simplification reduced observed workflow latency by roughly 50% in this test while preserving the workflow behavior.
 
-LangSmith traces also capture:
+LangSmith traces capture:
 
 - Router execution
 - Specialized agent execution
-- Action proposal
+- Action proposals
 - Human approval interrupts
 - Resume after approval
 - Final action execution
+
+---
+
+## Tech Stack
+
+### AI & Orchestration
+- LangGraph
+- OpenAI API
+- OpenAI Embeddings
+- Model Context Protocol
+
+### Backend
+- FastAPI
+- Python
+
+### State & Retrieval
+- SQLite
+- NumPy
+- Semantic similarity search
+
+### Engineering
+- Docker
+- Pytest
+- GitHub Actions
+- LangSmith
+
+---
+
 ## Current Scope
 
-The project uses synthetic JSON datasets for incidents, customer accounts, and operational knowledge.
+The project currently uses synthetic JSON datasets for incidents, customer accounts, and operational knowledge.
 
-Semantic retrieval uses an in-process embedding index suitable for this demonstration dataset.
+Semantic retrieval uses an in-process embedding index suitable for the current demonstration dataset.
 
-Operational execution is simulated through structured action results. The project does not directly modify production systems or contact real customers.
+Operational actions are simulated through structured responses. The project does not directly modify production systems or contact real customers.
+
+---
 
 ## Future Improvements
 
 - Persistent vector database
-- Hybrid retrieval and reranking
+- Hybrid retrieval
+- Reranking
 - Larger evaluation suite
 - External operational-system integrations
-- Deployment
+- Additional production observability
