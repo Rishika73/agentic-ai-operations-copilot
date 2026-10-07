@@ -212,11 +212,10 @@ POST /approve
 
 Example request:
 
-```bash
 curl -X POST http://127.0.0.1:8000/ask \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your_app_api_key_here" \
   -d '{"query":"What open incidents do we have?"}'
-```
 
 Requests that require approval return:
 
