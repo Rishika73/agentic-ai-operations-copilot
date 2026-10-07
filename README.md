@@ -13,9 +13,9 @@ The platform uses LangGraph for agent orchestration, OpenAI for reasoning and em
 The FastAPI service is deployed on Render.
 
 **Service Status:**  
-[agentic-ai-operations-copilot.onrender.com](https://agentic-ai-operations-copilot.onrender.com)
+[View Service Status](https://agentic-ai-operations-copilot.onrender.com)
 
-The service status endpoint returns:
+The status endpoint returns:
 
 ```json
 {
