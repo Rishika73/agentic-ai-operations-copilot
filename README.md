@@ -8,33 +8,41 @@ The platform uses LangGraph for agent orchestration, OpenAI for reasoning and em
 
 ## Live Deployment
 
-The FastAPI service is deployed on Render:
+The FastAPI service is deployed on Render.
 
-**Application**
+**Service Status**  
 https://agentic-ai-operations-copilot.onrender.com
 
-**API Docs**
+Returns the current service status:
+
+```json
+{
+  "service": "Agentic AI Operations Copilot",
+  "status": "running"
+}
+```
+
+**Interactive API Documentation**  
 https://agentic-ai-operations-copilot.onrender.com/docs
 
-**Health Check**
-`GET /health`
-
-Protected endpoints:
+The Swagger UI exposes the available API endpoints:
 
 ```text
+GET  /
+GET  /health
 POST /ask
 POST /approve
 ```
 
-These endpoints require an `X-API-Key` header.
+The `/ask` and `/approve` endpoints are protected with an `X-API-Key` header.
 
-> The free Render instance may take a few seconds to start after periods of inactivity.
+> The free Render instance may take a few seconds to wake after a period of inactivity.
 
 ---
 
 ## What This Project Does
 
-The system routes operational questions to specialized agents and combines structured tools, semantic retrieval, and approval-aware workflows.
+The system routes operational questions to specialized agents and combines structured tools, semantic retrieval, workflow state, and approval-aware execution.
 
 Current use cases include:
 
@@ -49,40 +57,15 @@ Current use cases include:
 
 ## Architecture
 
-```text
-User Query
-    |
-    v
-LangGraph Router
-    |
-    +-------------------+--------------------+
-    |                   |                    |
-    v                   v                    v
-Incident Agent     Account Risk Agent   Knowledge Agent
-    |                   |                    |
-Ticket Tools          CRM Tools        Semantic RAG
-    |                   |                    |
-    +-------------------+--------------------+
-                        |
-                        v
-                 Action Proposal
-                        |
-                        v
-              Human Approval Gate
-                        |
-                 approve / reject
-                        |
-                        v
-         Action Execution
-
-```
 ![Agentic AI Operations Copilot Architecture](docs/agentic-ai-operations-copilot-architecture.png)
+
+The workflow starts with a natural-language operational request, routes it through a LangGraph agent graph, retrieves the necessary context or tools, and either returns a response immediately or pauses for human approval before executing a higher-impact action.
 
 ---
 
 ## Multi-Agent Workflow
 
-LangGraph routes each request to one of three specialized agents:
+LangGraph routes each request to one of three specialized agents.
 
 ### Incident Agent
 
@@ -92,13 +75,27 @@ Analyzes active support incidents and operational issues.
 incident_agent
 ```
 
+Typical responsibilities include:
+
+- Reviewing open incidents
+- Summarizing incident details
+- Identifying escalation needs
+- Providing resolution guidance
+
 ### Account Risk Agent
 
-Identifies high-risk accounts and potential renewal issues.
+Identifies high-risk customer accounts and potential renewal issues.
 
 ```text
 account_risk_agent
 ```
+
+Typical responsibilities include:
+
+- Identifying at-risk accounts
+- Reviewing renewal risk
+- Evaluating customer health
+- Proposing customer-success actions
 
 ### Knowledge Agent
 
@@ -107,6 +104,13 @@ Retrieves internal policies and operational guidance using semantic search.
 ```text
 knowledge_agent
 ```
+
+Typical responsibilities include:
+
+- Policy lookup
+- Operational guidance
+- Best-practice retrieval
+- Procedure search
 
 ---
 
@@ -120,13 +124,15 @@ Embedding model:
 text-embedding-3-small
 ```
 
-This allows the system to retrieve useful operational knowledge even when the user's wording differs from the source material.
+This allows the system to retrieve useful operational knowledge even when the wording of a user query differs from the source material.
+
+The current implementation uses an in-process embedding index over the demonstration knowledge dataset.
 
 ---
 
 ## Model Context Protocol
 
-The project includes a working MCP server that exposes operational tools to AI clients.
+The project includes a working Model Context Protocol server that exposes operational tools to AI clients.
 
 Available MCP tools:
 
@@ -139,13 +145,13 @@ search_operations_knowledge
 
 The MCP server has been tested using MCP Inspector.
 
-Run it locally with:
+Start it locally with:
 
 ```bash
 PYTHONPATH=. python -u mcp_server.py
 ```
 
-Or inspect it with:
+Inspect the server with:
 
 ```bash
 mcp dev mcp_server.py
@@ -164,9 +170,9 @@ Examples include:
 
 LangGraph `interrupt()` pauses the workflow and returns an approval request.
 
-The same workflow can later resume using its `thread_id`.
+The workflow can later resume using the same `thread_id`.
 
-Knowledge-only requests do not require approval.
+Knowledge-only requests do not require approval and can return immediately.
 
 ---
 
@@ -179,6 +185,8 @@ agent_memory.db
 ```
 
 This allows interrupted workflows to resume from stored state instead of restarting from the beginning.
+
+The checkpoint layer stores workflow state associated with the conversation thread.
 
 Runtime database files are excluded from Git.
 
@@ -248,6 +256,8 @@ agentic-ai-operations-copilot/
 │   └── test_knowledge_tool.py
 ├── evals/
 ├── docs/
+│   ├── agent_routing_demo.png
+│   └── agentic-ai-operations-copilot-architecture.png
 ├── .github/
 │   └── workflows/
 │       └── tests.yml
@@ -359,7 +369,7 @@ This provides automated validation for the agent workflow, retrieval logic, appr
 
 ## Observability & Performance
 
-LangSmith tracing is integrated to inspect LangGraph execution paths, node-level latency, and approval workflows.
+LangSmith tracing is integrated to inspect LangGraph execution paths, node-level latency, and human-in-the-loop workflows.
 
 Tracing showed that the LLM synthesis step was the main contributor to incident-response latency.
 
@@ -375,7 +385,7 @@ Total workflow: 9.66s
 LLM synthesis: 9.46s
 ```
 
-Prompt simplification reduced observed workflow latency by roughly 50% in this test while preserving the workflow behavior.
+Prompt simplification reduced observed workflow latency by roughly 50% in this test while preserving workflow behavior.
 
 LangSmith traces capture:
 
