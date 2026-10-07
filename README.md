@@ -295,7 +295,11 @@ Create your local environment file:
 cp .env.example .env
 ```
 
-Add your OpenAI API key to `.env`.
+Add your OpenAI API key and application API key to `.env`:
+
+```text
+OPENAI_API_KEY=your_openai_api_key_here
+APP_API_KEY=your_app_api_key_here
 
 Do not commit `.env`.
 
