@@ -265,7 +265,10 @@ agentic-ai-operations-copilot/
 ├── mcp_server.py
 ├── Dockerfile
 ├── .dockerignore
+├── .env.example
+├── .gitignore
 ├── requirements.txt
+├── LICENSE
 └── README.md
 ```
 
