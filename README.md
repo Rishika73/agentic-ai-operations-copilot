@@ -73,8 +73,10 @@ Ticket Tools          CRM Tools        Semantic RAG
                  approve / reject
                         |
                         v
-                 Action Execution
+         Action Execution
+
 ```
+![Agentic AI Operations Copilot Architecture](docs/agentic-ai-operations-copilot-architecture.png)
 
 ---
 
