@@ -1,7 +1,7 @@
 # Agentic AI Operations Copilot
 [![Tests](https://github.com/Rishika73/agentic-ai-operations-copilot/actions/workflows/tests.yml/badge.svg)](https://github.com/Rishika73/agentic-ai-operations-copilot/actions/workflows/tests.yml)
 
-A production-style multi-agent AI system for operational support, incident analysis, account risk detection, and internal knowledge retrieval.
+A production-oriented multi-agent AI system for operational support, incident analysis, account risk detection, and internal knowledge retrieval.
 
 The platform uses LangGraph for agent orchestration, OpenAI for reasoning and embeddings, FastAPI for serving workflows, MCP for tool access, SQLite checkpointing for resumable state, and human approval gates for higher-impact actions.
 
